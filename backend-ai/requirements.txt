@@ -7,3 +7,11 @@ insightface==0.7.3
 onnxruntime==1.15.1
 opencv-python==4.8.0.74
 pymongo==4.4.1
+
+leverparser
+pdfplumber
+python-docx
+python-dotenv
+pydantic
+requests
+
