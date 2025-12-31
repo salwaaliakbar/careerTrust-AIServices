@@ -14,7 +14,7 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY", "career-trust-ai-key")
 
 @router.post('/parse-resume')
-async def parse_resume(file: UploadFile = File(...), x_api_key: str | None = Header(None)):
+async def parse_resume(file: UploadFile = File(...), x_api_key: str | None = Header(None), fullName: str | None = None, email: str | None = None):
     if API_KEY and x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
@@ -23,7 +23,7 @@ async def parse_resume(file: UploadFile = File(...), x_api_key: str | None = Hea
 
     try:
         # Parse using pyresume; pass filename so parser can detect PDFs/DOCX
-        parsed = parse_resume_file(contents, filename=filename)
+        parsed = parse_resume_file(contents, fullName, email, filename=filename)
         return {"parsed": parsed, "filename": filename}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Parsing error: {str(e)}")
