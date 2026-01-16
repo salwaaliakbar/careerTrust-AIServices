@@ -1,10 +1,6 @@
 from pymongo import MongoClient
 import numpy as np
-
-# Initialize MongoDB client and collection
-client = MongoClient('mongodb://localhost:27017/')
-db = client['careerTrust']
-coll = db['face_embeddings']
+from app.db import client, db, coll
 
 def get_all_embeddings():
     """
@@ -24,3 +20,9 @@ def add_embedding(user_id, embedding):
         {'$set': {'embedding': embedding.tolist()}}, 
         upsert=True
     )
+
+def get_embedding_by_user(user_id):
+    doc = coll.find_one({'user_id': user_id}, {'embedding': 1})
+    if not doc or 'embedding' not in doc:
+        return None
+    return np.array(doc['embedding'])
