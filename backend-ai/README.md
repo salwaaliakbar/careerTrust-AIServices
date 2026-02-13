@@ -1,6 +1,31 @@
 # backend-ai
 
-This folder contains a minimal AI microservice helper for face recognition, image utilities, and other related functionality, used by the CareerTrust platform.
+This folder contains an AI microservice for the CareerTrust platform, providing:
+- **Face recognition** and embedding extraction
+- **Job recommendation system** with hybrid semantic + rule-based matching
+- **Resume parsing** capabilities
+- Image utilities and other AI-powered features
+
+---
+
+## 🚀 Features
+
+### 1. Job Matching System (Production-Grade)
+A sophisticated job recommendation engine that correctly handles:
+- ✅ Skills matching without penalizing extra qualifications
+- ✅ Job title hierarchy and specialization awareness
+- ✅ Rule-based experience matching (not embedding-based)
+- ✅ Full explainability with confidence scores
+
+**📖 See [MATCHING_ARCHITECTURE.md](MATCHING_ARCHITECTURE.md) for complete documentation**
+
+**🧪 Run tests**: `python test_matching_examples.py`
+
+### 2. Face Recognition
+InsightFace-powered face detection and embedding extraction
+
+### 3. Resume Parsing
+Extract structured data from resume documents
 
 ---
 
