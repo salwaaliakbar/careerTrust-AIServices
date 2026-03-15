@@ -24,6 +24,9 @@ A sophisticated job recommendation engine that correctly handles:
 ### 2. Face Recognition
 InsightFace-powered face detection and embedding extraction
 
+Note: This AI service only extracts embeddings. It does not write face data to MongoDB.
+Embedding storage and duplicate checks are handled by the Node backend face store.
+
 ### 3. Resume Parsing
 Extract structured data from resume documents
 

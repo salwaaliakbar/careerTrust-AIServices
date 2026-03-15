@@ -13,4 +13,4 @@ app.include_router(job_router)
 # root health
 @app.get("/")
 def root():
-    return {"ok": True, "services": ["face-recognition", "parse-resume", "job-recommendation"]}
+    return {"ok": True, "services": ["face-embedding", "parse-resume", "job-recommendation"]}
