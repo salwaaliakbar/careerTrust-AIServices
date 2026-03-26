@@ -201,6 +201,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Local trained model artifacts
+backend-ai/model_output_v3/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
