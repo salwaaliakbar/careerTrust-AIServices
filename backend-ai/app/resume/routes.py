@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import APIRouter, File, UploadFile, Header, HTTPException, Form
 from fastapi.responses import JSONResponse
-from app.pyresume_parser import parse_resume_file
+from app.resume.parser import parse_resume_file
 import traceback
 
 router = APIRouter()

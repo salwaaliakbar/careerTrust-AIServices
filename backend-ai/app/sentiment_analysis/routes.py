@@ -75,7 +75,7 @@ class SentimentInferenceService:
 
     def _model_dir(self) -> Path:
         return (
-            Path(__file__).resolve().parents[1]
+            Path(__file__).resolve().parents[2]
             / "model_output_v3"
             / "model_output_v3"
         )

@@ -5,7 +5,7 @@ Run this file to see how the improved matching system handles various edge cases
 """
 
 import json
-from app.job_recommendation_route import recommend
+from app.job_recommendation import recommend
 
 
 def print_result(title, result):

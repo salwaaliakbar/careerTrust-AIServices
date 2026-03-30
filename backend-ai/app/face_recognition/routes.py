@@ -3,7 +3,7 @@ import logging
 from dotenv import load_dotenv
 from fastapi import APIRouter, File, Header, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
-from app.image_utils import read_and_detect_face_and_get_embedding
+from app.face_recognition.image_utils import read_and_detect_face_and_get_embedding
 
 router = APIRouter()
 

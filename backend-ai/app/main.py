@@ -1,8 +1,8 @@
 from fastapi import FastAPI
-from app.face_routes import router as face_router
-from app.resume_routes import router as resume_router
-from app.job_recommendation_route import router as job_router
-from app.reputation_sentiment import router as reputation_router
+from app.face_recognition.routes import router as face_router
+from app.resume.routes import router as resume_router
+from app.job_recommendation import router as job_router
+from app.sentiment_analysis.routes import router as reputation_router
 
 app = FastAPI(title="CareerTrust AI Services")
 
