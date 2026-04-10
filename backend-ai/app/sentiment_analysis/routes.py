@@ -1,77 +1,34 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from threading import Lock
 from typing import Dict
 
-import torch
-import torch.nn as nn
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-from transformers import DistilBertConfig, DistilBertModel, DistilBertTokenizerFast
+from .anti_manipulation import AntiManipulationEngine
+from .reputation_scorer import ReputationScorer
+from .sentiment_analyzer import SentimentAnalyzer
 
 
 class ReviewSentimentRequest(BaseModel):
     review_text: str = Field(..., min_length=5, max_length=4000)
-
-
-class MultiAspectRegressor(nn.Module):
-    def __init__(self, hidden_dim: int, aspect_names: list[str]):
-        super().__init__()
-        self.encoder = DistilBertModel(DistilBertConfig())
-        self.feature_extractor = nn.Sequential(
-            nn.Linear(self.encoder.config.hidden_size, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(0.35),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.LayerNorm(hidden_dim),
-            nn.GELU(),
-            nn.Dropout(0.35),
-        )
-
-        head_hidden = max(hidden_dim // 2, 64)
-        self.overall_head = nn.Sequential(
-            nn.Linear(hidden_dim, head_hidden),
-            nn.GELU(),
-            nn.Dropout(0.2),
-            nn.Linear(head_hidden, 1),
-        )
-
-        self.aspect_heads = nn.ModuleDict(
-            {
-                aspect: nn.Sequential(
-                    nn.Linear(hidden_dim, head_hidden),
-                    nn.GELU(),
-                    nn.Dropout(0.2),
-                    nn.Linear(head_hidden, 1),
-                )
-                for aspect in aspect_names
-            }
-        )
-
-    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
-        encoded = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
-        pooled = encoded.last_hidden_state[:, 0, :]
-        features = self.feature_extractor(pooled)
-
-        overall = self.overall_head(features).squeeze(-1)
-        aspects = {
-            name: head(features).squeeze(-1) for name, head in self.aspect_heads.items()
-        }
-        return overall, aspects
+    recent_submissions: list[str] | None = None
+    ip_hash: str | None = None
 
 
 class SentimentInferenceService:
     def __init__(self):
         self._lock = Lock()
         self._ready = False
-        self._model = None
-        self._tokenizer = None
-        self._aspect_names: list[str] = []
-        self._rating_min = 1.0
-        self._rating_max = 5.0
+        self._analyzer: SentimentAnalyzer | None = None
+        self._anti_engine = AntiManipulationEngine()
+        # alpha=0 keeps single-comment score aligned with analyzer output while
+        # still using the standalone reputation scoring module.
+        self._reputation_scorer = ReputationScorer(
+            bayesian_alpha=0,
+            min_calibrated_confidence=0.0,
+        )
 
     def _model_dir(self) -> Path:
         return (
@@ -82,40 +39,14 @@ class SentimentInferenceService:
 
     def _load(self):
         model_dir = self._model_dir()
-        config_path = model_dir / "config.json"
         weight_path = model_dir / "best.pt"
 
-        if not config_path.exists() or not weight_path.exists():
+        if not weight_path.exists():
             raise RuntimeError("Model files missing in model_output_v3/model_output_v3")
 
-        with config_path.open("r", encoding="utf-8") as f:
-            cfg = json.load(f)
-
-        self._aspect_names = cfg.get("aspect_names", [])
-        hidden_dim = int(cfg.get("hidden_dim", 384))
-        self._rating_min = float(cfg.get("rating_min", 1.0))
-        self._rating_max = float(cfg.get("rating_max", 5.0))
-
-        if not self._aspect_names:
-            raise RuntimeError("aspect_names missing in sentiment config")
-
-        self._tokenizer = DistilBertTokenizerFast.from_pretrained(
-            str(model_dir),
-            local_files_only=True,
-        )
-
-        model = MultiAspectRegressor(hidden_dim=hidden_dim, aspect_names=self._aspect_names)
-        checkpoint = torch.load(weight_path, map_location="cpu")
-
-        if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-            state_dict = checkpoint["state_dict"]
-        else:
-            state_dict = checkpoint
-
-        model.load_state_dict(state_dict, strict=False)
-        model.eval()
-
-        self._model = model
+        # Use the same analyzer implementation as standalone workflow to keep
+        # API and script predictions fully aligned.
+        self._analyzer = SentimentAnalyzer(model_dir=str(model_dir), device="cpu")
         self._ready = True
 
     def ensure_ready(self):
@@ -126,38 +57,69 @@ class SentimentInferenceService:
                 return
             self._load()
 
-    def analyze(self, review_text: str) -> Dict[str, object]:
+    def analyze(
+        self,
+        review_text: str,
+        recent_submissions: list[str] | None = None,
+        ip_hash: str | None = None,
+    ) -> Dict[str, object]:
         self.ensure_ready()
-        assert self._tokenizer is not None
-        assert self._model is not None
+        assert self._analyzer is not None
 
-        encoded = self._tokenizer(
-            review_text,
-            truncation=True,
-            padding="max_length",
-            max_length=256,
-            return_tensors="pt",
+        prediction = self._analyzer.predict(review_text)
+        raw_overall_score = float(prediction["overall_rating"])
+        raw_aspect_scores = {
+            key: float(value)
+            for key, value in prediction.get("aspect_scores", {}).items()
+        }
+        base_signal = float(prediction.get("sentiment_signal", 0.0))
+        confidence = float(prediction.get("confidence", 0.0))
+
+        anti_result = self._anti_engine.check_submission(
+            text=review_text,
+            ip_hash=ip_hash or "",
+            recent_submissions=recent_submissions or [],
+            sentiment_confidence=confidence,
         )
 
-        with torch.no_grad():
-            overall, aspects = self._model(
-                encoded["input_ids"],
-                encoded["attention_mask"],
-            )
+        weight_factor = float(anti_result.get("weight_factor", 1.0))
 
-        overall_score = float(overall[0].item())
-        overall_score = max(self._rating_min, min(self._rating_max, overall_score))
+        reputation_projection = self._reputation_scorer.compute_reputation_score(
+            sentiments=[{"signal": base_signal, "confidence": confidence}],
+            scale="5star",
+        )
 
-        aspect_scores: Dict[str, float] = {}
-        for name in self._aspect_names:
-            value = float(aspects[name][0].item())
-            aspect_scores[name] = max(self._rating_min, min(self._rating_max, value))
+        # API primary scores must stay identical to standalone model output.
+        overall_score = raw_overall_score
 
         return {
             "overall_score": round(overall_score, 3),
-            "aspect_scores": {k: round(v, 3) for k, v in aspect_scores.items()},
-            "rating_min": self._rating_min,
-            "rating_max": self._rating_max,
+            "aspect_scores": {k: round(v, 3) for k, v in raw_aspect_scores.items()},
+            "rating_min": 1.0,
+            "rating_max": 5.0,
+            "label": prediction.get("label"),
+            "confidence": round(confidence, 3),
+            "sentiment_signal": round(base_signal, 3),
+            "raw_sentiment": {
+                "overall_score": round(raw_overall_score, 3),
+                "aspect_scores": {k: round(v, 3) for k, v in raw_aspect_scores.items()},
+                "sentiment_signal": round(base_signal, 3),
+            },
+            "anti_manipulation": {
+                "is_suspicious": bool(anti_result.get("is_suspicious", False)),
+                "flags": anti_result.get("flags", []),
+                "weight_factor": round(weight_factor, 3),
+                "recommendation": anti_result.get("recommendation", "approve"),
+                "details": anti_result.get("details", {}),
+            },
+            "reputation_projection": {
+                "score": round(float(reputation_projection.get("score", overall_score)), 3),
+                "ci_lower": round(float(reputation_projection.get("ci_lower", 1.0)), 3),
+                "ci_upper": round(float(reputation_projection.get("ci_upper", 5.0)), 3),
+                "sample_size": int(reputation_projection.get("sample_size", 0)),
+                "sentiment_signal": round(float(reputation_projection.get("sentiment_signal", base_signal)), 3),
+                "scale": reputation_projection.get("scale", "5star"),
+            },
             "model": "model_output_v3",
         }
 
@@ -173,6 +135,10 @@ def analyze_review_sentiment(payload: ReviewSentimentRequest):
         raise HTTPException(status_code=400, detail="review_text is too short")
 
     try:
-        return _service.analyze(text)
+        return _service.analyze(
+            text,
+            recent_submissions=payload.recent_submissions,
+            ip_hash=payload.ip_hash,
+        )
     except Exception as error:
         raise HTTPException(status_code=500, detail=f"Sentiment analysis failed: {error}")
