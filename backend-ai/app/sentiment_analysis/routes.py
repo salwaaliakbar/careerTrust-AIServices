@@ -2,13 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import Lock
-from typing import Dict
+from typing import TYPE_CHECKING, Dict
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from .anti_manipulation import AntiManipulationEngine
 from .reputation_scorer import ReputationScorer
-from .sentiment_analyzer import SentimentAnalyzer
+
+if TYPE_CHECKING:
+    from .sentiment_analyzer import SentimentAnalyzer
 
 
 class ReviewSentimentRequest(BaseModel):
@@ -21,7 +23,7 @@ class SentimentInferenceService:
     def __init__(self):
         self._lock = Lock()
         self._ready = False
-        self._analyzer: SentimentAnalyzer | None = None
+        self._analyzer: "SentimentAnalyzer | None" = None
         self._anti_engine = AntiManipulationEngine()
         # alpha=0 keeps single-comment score aligned with analyzer output while
         # still using the standalone reputation scoring module.
@@ -31,18 +33,28 @@ class SentimentInferenceService:
         )
 
     def _model_dir(self) -> Path:
-        return (
-            Path(__file__).resolve().parents[2]
-            / "model_output_v3"
-            / "model_output_v3"
-        )
+        project_root = Path(__file__).resolve().parents[2]
+        candidates = [
+            project_root / "app" / "model_output_v3",
+            project_root / "model_output_v3" / "model_output_v3",
+            project_root / "model_output_v3",
+        ]
+
+        for candidate in candidates:
+            if (candidate / "best.pt").exists():
+                return candidate
+
+        # Return the primary expected path to keep downstream error messages clear.
+        return candidates[0]
 
     def _load(self):
+        from .sentiment_analyzer import SentimentAnalyzer
+
         model_dir = self._model_dir()
         weight_path = model_dir / "best.pt"
 
         if not weight_path.exists():
-            raise RuntimeError("Model files missing in model_output_v3/model_output_v3")
+            raise RuntimeError(f"Model files missing at {weight_path}")
 
         # Use the same analyzer implementation as standalone workflow to keep
         # API and script predictions fully aligned.
