@@ -1,6 +1,6 @@
 # Job Matching System - Production Architecture
 
-## 🎯 Executive Summary
+##  Executive Summary
 
 This document describes a **production-grade, hybrid job matching system** that combines semantic similarity with rule-based constraints to accurately match candidates with job postings.
 
@@ -9,13 +9,13 @@ This document describes a **production-grade, hybrid job matching system** that 
 | Problem | Old Approach | New Solution | Impact |
 |---------|-------------|--------------|---------|
 | **Extra Skills Penalty** | Pure cosine similarity penalizes candidates with more skills than required | Hybrid: Set coverage (60%) + Semantic (30%) + Bonus (10%) | ✅ Qualified candidates no longer penalized |
-| **Title Hierarchy** | "AI Engineer" vs "Engineer" treated as dissimilar | Hierarchy detection + specialization boost | ✅ Specializations correctly recognized |
-| **Experience Matching** | Embedding "5 years" vs "2 years" semantically | Numeric rule-based matching | ✅ Correct numerical comparison |
-| **Over-qualification** | Not distinguished from under-qualification | Separate flags + maintained high scores | ✅ HR can review flight risk |
+| **Title Hierarchy** | "AI Engineer" vs "Engineer" treated as dissimilar | Hierarchy detection + specialization boost |  Specializations correctly recognized |
+| **Experience Matching** | Embedding "5 years" vs "2 years" semantically | Numeric rule-based matching |  Correct numerical comparison |
+| **Over-qualification** | Not distinguished from under-qualification | Separate flags + maintained high scores |  HR can review flight risk |
 
 ---
 
-## 🏗️ System Architecture
+##  System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -79,7 +79,7 @@ This document describes a **production-grade, hybrid job matching system** that 
 
 ---
 
-## 📊 Scoring Methodology
+##  Scoring Methodology
 
 ### Component Weights (Final Score)
 
@@ -196,10 +196,10 @@ else:  # Within range
 ```
 
 **Key Principles:**
-- ✅ Meeting minimum → 100 points
-- ⚠️ Under-qualified → proportional penalty
-- ✅ Over-qualified → maintain 85-100 (NO hard penalty)
-- 🚩 Flag extreme over-qualification for HR review (flight risk)
+-  Meeting minimum → 100 points
+-  Under-qualified → proportional penalty
+-  Over-qualified → maintain 85-100 (NO hard penalty)
+-  Flag extreme over-qualification for HR review (flight risk)
 
 **Example:**
 
@@ -207,8 +207,8 @@ else:  # Within range
 Job: 2-5 years required
 Candidate: 7 years
 
-Meets minimum: ✅ Yes
-Within range: ⚠️ No (2 years over max)
+Meets minimum:  Yes
+Within range:  No (2 years over max)
 Score: max(85, 100 - 2×2) = 96
 Flag: "Potentially over-qualified (review for flight risk)"
 ```
@@ -240,14 +240,14 @@ score = cosine_similarity(summary_vec, description_vec) × 100
 | **Experience** | **Rule-Based ONLY** | Numeric comparison, not semantic |
 | **Summary** | **Semantic ONLY** | Free-form text, intent matching |
 
-### ❌ When NOT to Use Embeddings
+###  When NOT to Use Embeddings
 
 1. **Numeric constraints**: Experience, salary ranges, dates
 2. **Exact matches**: Required certifications, legal requirements
 3. **Hierarchies**: Seniority levels (use rule-based ordering)
 4. **Set operations**: Required vs optional (use set logic)
 
-### ✅ When TO Use Embeddings
+###  When TO Use Embeddings
 
 1. **Synonyms**: "JS" ≈ "JavaScript", "ML" ≈ "Machine Learning"
 2. **Free text**: Summaries, descriptions, cover letters
@@ -256,7 +256,7 @@ score = cosine_similarity(summary_vec, description_vec) × 100
 
 ---
 
-## 🚀 API Usage
+##  API Usage
 
 ### Request Format
 
