@@ -24,9 +24,12 @@ DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 DistilBertModel.from_pretrained("distilbert-base-uncased")
 # Pulls the buffalo_s detection/recognition model pack into the image so
 # face_recognition/image_utils.py's _get_app() doesn't try to download it
-# on first request. Must match the `name` and `det_size` used there exactly,
-# since insightface caches each named pack under its own path.
-insightface.app.FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"]).prepare(ctx_id=0, det_size=(320, 320))
+# on first request. Must match the `name`, `root`, and `det_size` used there
+# exactly: insightface caches each named pack under root/models/name, and
+# `root` defaults to `~`, which Render resolves differently at build time
+# than at runtime — pinning it to a fixed path keeps build and runtime in
+# the same cache directory regardless of $HOME.
+insightface.app.FaceAnalysis(name="buffalo_s", root="/srv/.insightface", providers=["CPUExecutionProvider"]).prepare(ctx_id=0, det_size=(320, 320))
 PY
 
 COPY app ./app

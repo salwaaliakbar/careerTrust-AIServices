@@ -18,6 +18,7 @@ def _get_app():
             if _app is None:
                 loaded = insightface.app.FaceAnalysis(
                 name="buffalo_s",
+                root="/srv/.insightface",
                 providers=["CPUExecutionProvider"],
                 )
                 loaded.prepare(ctx_id=0, det_size=(320, 320))
