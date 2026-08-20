@@ -1,10 +1,26 @@
+from threading import Lock
+
 import insightface
 import numpy as np
 import cv2
 
-# Initialize InsightFace app with detection and recognition modules
-app = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
-app.prepare(ctx_id=0, det_size=(640, 640))
+# InsightFace's detection+recognition pack is loaded on first use instead of
+# at import time, so a process that never gets a face-recognition request
+# never pays the RAM cost for it.
+_app = None
+_app_lock = Lock()
+
+
+def _get_app():
+    global _app
+    if _app is None:
+        with _app_lock:
+            if _app is None:
+                loaded = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
+                loaded.prepare(ctx_id=0, det_size=(640, 640))
+                _app = loaded
+    return _app
+
 
 def read_and_detect_face_and_get_embedding(image_bytes):
     npimg = np.frombuffer(image_bytes, np.uint8)
@@ -12,7 +28,7 @@ def read_and_detect_face_and_get_embedding(image_bytes):
     if img is None:
         return None, None
 
-    faces = app.get(img)
+    faces = _get_app().get(img)
 
     # Ensure exactly one face detected
     if len(faces) != 1:

@@ -6,17 +6,29 @@ Handles multiple resume formats using hybrid approach
 import json
 import re
 from datetime import datetime
+from threading import Lock
 from typing import Optional, List, Dict, Any, Tuple
 from dateutil import parser as dateparser
 import spacy
 
-# Load spaCy model
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    import subprocess
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
+# spaCy model is loaded on first use instead of at import time, so a process
+# that never parses a resume never pays for it.
+_nlp = None
+_nlp_lock = Lock()
+
+
+def _get_nlp():
+    global _nlp
+    if _nlp is None:
+        with _nlp_lock:
+            if _nlp is None:
+                try:
+                    _nlp = spacy.load("en_core_web_sm")
+                except OSError:
+                    import subprocess
+                    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+                    _nlp = spacy.load("en_core_web_sm")
+    return _nlp
 
 
 # ===================================================================
@@ -176,7 +188,7 @@ def _extract_contact_info(text: str) -> Dict[str, Optional[str]]:
                     break
     
     # Location - use NER
-    doc = nlp(header)
+    doc = _get_nlp()(header)
     location = None
     for ent in doc.ents:
         if ent.label_ in ["GPE", "LOC"]:
