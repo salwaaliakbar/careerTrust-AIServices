@@ -4,6 +4,8 @@
 1. New → Web Service → pick this repo → **Environment: Python 3** (set "Root Directory" to `backend-ai` if the repo contains more than this service).
 2. Build Command: `pip install -r requirements.txt`
 3. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+**Python version**: this repo pins `3.11.9` via `.python-version` — without it Render defaults to the latest Python (e.g. 3.14), and old pinned deps like `pillow==9.5.0` fail to build from source on anything newer than what they were released for. If Render still doesn't pick it up, set `PYTHON_VERSION=3.11.9` explicitly as an environment variable on the service.
 4. Environment variables (Render dashboard → Environment):
    - `API_KEY` — long random string; the Node backend must send this same value as `AI_API_KEY`/`X-API-Key`.
    - `ALLOWED_ORIGINS` — your Vercel frontend URL, e.g. `https://your-app.vercel.app`. Add the Render backend URL too only if it calls this service directly from a browser context (server-to-server calls don't need CORS).
