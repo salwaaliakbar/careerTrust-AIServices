@@ -16,8 +16,11 @@ def _get_app():
     if _app is None:
         with _app_lock:
             if _app is None:
-                loaded = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
-                loaded.prepare(ctx_id=0, det_size=(640, 640))
+                loaded = insightface.app.FaceAnalysis(
+                name="buffalo_s",
+                providers=["CPUExecutionProvider"],
+                )
+                loaded.prepare(ctx_id=0, det_size=(320, 320))
                 _app = loaded
     return _app
 
