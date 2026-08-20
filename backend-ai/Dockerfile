@@ -13,7 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Pre-download models at BUILD time so the first request doesn't pay for a
 # slow (or, on a network-restricted host, failing) download.
-RUN python -m spacy download en_core_web_lg
+RUN python -m spacy download en_core_web_sm
 RUN python - <<'PY'
 from sentence_transformers import SentenceTransformer
 from transformers import DistilBertModel, DistilBertTokenizerFast
