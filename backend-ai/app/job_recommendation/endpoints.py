@@ -1,13 +1,14 @@
 from typing import Dict
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.config import require_api_key
 from .aggregator import ScoreAggregator
 from .matchers import ExperienceMatcher, SkillsMatcher, SummaryMatcher, TitleMatcher
 from .model import get_model
 from .utils import parse_experience
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 @router.post("/recommend")

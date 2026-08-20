@@ -4,8 +4,9 @@ from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING, Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from app.config import require_api_key
 from .anti_manipulation import AntiManipulationEngine
 from .reputation_scorer import ReputationScorer
 
@@ -137,7 +138,7 @@ class SentimentInferenceService:
 
 
 _service = SentimentInferenceService()
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_api_key)])
 
 
 @router.post("/analyze-review-sentiment")

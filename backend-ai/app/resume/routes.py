@@ -1,28 +1,16 @@
-import os
-from dotenv import load_dotenv
-from fastapi import APIRouter, File, UploadFile, Header, HTTPException, Form
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, Form
+from app.config import require_api_key
 from app.resume.parser import parse_resume_file
 import traceback
 
 router = APIRouter()
 
-# Load environment variables from a .env file if present
-load_dotenv()
 
-# Read API key from environment, fall back to a default for local testing
-# Set `API_KEY` in your .env or environment to override.
-API_KEY = os.getenv("API_KEY", "career-trust-ai-key")
-
-@router.post('/parse-resume')
-async def parse_resume(file: UploadFile = File(...), 
-    x_api_key: str | None = Header(None), 
-    fullName: str = Form(""), 
+@router.post('/parse-resume', dependencies=[Depends(require_api_key)])
+async def parse_resume(file: UploadFile = File(...),
+    fullName: str = Form(""),
     email: str = Form("")
     ):
-    if API_KEY and x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
     contents = await file.read()
     filename = file.filename or "resume"
 
@@ -39,7 +27,7 @@ async def parse_resume(file: UploadFile = File(...),
         "name": parsed.get("name") != fullName,
         "email": parsed.get("email") != email,
         }
-        
+
         return {
         "parsed": parsed,
         "mismatches": mismatches,
