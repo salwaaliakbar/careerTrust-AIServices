@@ -28,24 +28,14 @@ DistilBertModel.from_pretrained("distilbert-base-uncased")
 insightface.app.FaceAnalysis(providers=["CPUExecutionProvider"]).prepare(ctx_id=0, det_size=(640, 640))
 PY
 
-# app/model_output_v3 (fine-tuned sentiment DistilBERT checkpoint, ~254MB)
-# is gitignored — too large for the git repo — so it lives in a Hugging
-# Face Hub model repo instead and is pulled here at build time. Upload it
-# once with scripts/upload_model_to_hf.py, then set the repo id below.
-# Placed before `COPY app ./app` so code-only changes don't bust this layer
-# and force a re-download every build.
-ENV HF_MODEL_REPO="salwaaliakbar/careertrust-sentiment-distilbert"
-RUN python - <<'PY'
-import os
-from huggingface_hub import snapshot_download
-
-snapshot_download(repo_id=os.environ["HF_MODEL_REPO"], local_dir="app/model_output_v3")
-PY
-
 COPY app ./app
 
-RUN test -f app/model_output_v3/best.pt || \
-    (echo "Missing app/model_output_v3/best.pt after Hugging Face download — check HF_MODEL_REPO points at a repo containing best.pt." && exit 1)
+# app/model_output_v3 (fine-tuned sentiment DistilBERT checkpoint, ~254MB) is
+# gitignored — too large for the git repo — so it isn't copied in above. The
+# app downloads it from Hugging Face Hub on the first /sentiment request
+# instead (see app/sentiment_analysis/routes.py's _download_from_hf), as
+# long as HF_MODEL_REPO is set as a runtime environment variable. Upload the
+# checkpoint once with scripts/upload_model_to_hf.py.
 
 ENV PORT=8000
 EXPOSE 8000

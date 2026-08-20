@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import os
 from pathlib import Path
 from threading import Lock
 from typing import TYPE_CHECKING, Dict
@@ -12,6 +14,8 @@ from .reputation_scorer import ReputationScorer
 
 if TYPE_CHECKING:
     from .sentiment_analyzer import SentimentAnalyzer
+
+logger = logging.getLogger(__name__)
 
 
 class ReviewSentimentRequest(BaseModel):
@@ -48,11 +52,32 @@ class SentimentInferenceService:
         # Return the primary expected path to keep downstream error messages clear.
         return candidates[0]
 
+    def _download_from_hf(self, model_dir: Path) -> None:
+        """Pull the fine-tuned checkpoint from Hugging Face Hub on first use.
+
+        The checkpoint (~254MB) is too large to commit to git, so it's hosted
+        on HF Hub and fetched here instead of at deploy time — this repo has
+        no Docker build step to hook a download into on a plain Render web
+        service, so this runs lazily the first time the endpoint is hit.
+        """
+        repo_id = os.getenv("HF_MODEL_REPO")
+        if not repo_id:
+            return
+
+        from huggingface_hub import snapshot_download
+
+        logger.info("Downloading sentiment model from Hugging Face Hub: %s", repo_id)
+        snapshot_download(repo_id=repo_id, local_dir=str(model_dir))
+        logger.info("Sentiment model download complete: %s", model_dir)
+
     def _load(self):
         from .sentiment_analyzer import SentimentAnalyzer
 
         model_dir = self._model_dir()
         weight_path = model_dir / "best.pt"
+
+        if not weight_path.exists():
+            self._download_from_hf(model_dir)
 
         if not weight_path.exists():
             raise RuntimeError(f"Model files missing at {weight_path}")
