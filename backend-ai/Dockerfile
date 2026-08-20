@@ -22,10 +22,11 @@ import insightface
 SentenceTransformer("all-MiniLM-L6-v2")
 DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 DistilBertModel.from_pretrained("distilbert-base-uncased")
-# Pulls the buffalo_l detection/recognition model pack into the image so
-# face_recognition/image_utils.py's module-level FaceAnalysis().prepare()
-# doesn't try to download it on first container start.
-insightface.app.FaceAnalysis(providers=["CPUExecutionProvider"]).prepare(ctx_id=0, det_size=(640, 640))
+# Pulls the buffalo_s detection/recognition model pack into the image so
+# face_recognition/image_utils.py's _get_app() doesn't try to download it
+# on first request. Must match the `name` and `det_size` used there exactly,
+# since insightface caches each named pack under its own path.
+insightface.app.FaceAnalysis(name="buffalo_s", providers=["CPUExecutionProvider"]).prepare(ctx_id=0, det_size=(320, 320))
 PY
 
 COPY app ./app
