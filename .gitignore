@@ -135,7 +135,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
 env/
@@ -208,3 +207,5 @@ backend-ai/model_output_v3/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+config.bat
+node_modules
